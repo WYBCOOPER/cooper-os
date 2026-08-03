@@ -1,0 +1,41 @@
+# COOPER OS .gitignore
+# Protect sensitive files from being uploaded to GitHub
+
+# --- Sensitive files (NEVER commit) ---
+.server-auth.json
+cooper-os-data.json
+THINKING_PROFILE.md
+BEHAVIOR_PATTERNS.md
+
+# --- Config & secrets ---
+.npmrc
+.env
+*.env
+openclaw.json
+*.json.bak
+
+# --- Data & backups ---
+backups/
+*.bak
+*.bak-*
+
+# --- Dependencies & build ---
+node_modules/
+dist/
+win-unpacked/
+*.exe
+*.zip
+
+# --- Logs & temp ---
+*.log
+*.tmp
+_archive/screenshots/
+
+# --- Dev scripts with key patterns ---
+_dev-scripts/security_scan.js
+_dev-scripts/pre_upload_audit.js
+
+# --- System files ---
+Thumbs.db
+Desktop.ini
+.DS_Store
