@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>COOPER OS · 雪山方案 v3（联动）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    min-height: 100vh;
+    background: url('snow_bg.png') center/cover no-repeat fixed;
+    color: #fff;
+  }
+  /* 蒙层：保留雪山，底部加深可读 */
+  body::before {
+    content:''; position: fixed; inset: 0; z-index: 0;
+    background: linear-gradient(180deg, rgba(4,7,16,0.14) 0%, rgba(4,7,16,0.04) 32%, rgba(4,7,16,0.55) 100%);
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; padding: 26px 24px 46px; }
+
+  /* 状态栏 */
+  .statusbar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 6px; font-size: 13px;
+    color: rgba(255,255,255,0.95);
+    text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+  }
+  .brand { font-weight: 700; letter-spacing: .12em; }
+  .brand b { color: #e8c98f; }
+  .spacer { flex: 1; }
+  .stat { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,0.85); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #9ee8c8; box-shadow: 0 0 8px rgba(158,232,200,0.9); }
+  .clock { font-family: 'Cascadia Code', Consolas, monospace; letter-spacing: .04em; }
+
+  /* ===== 中央圆盘：月亮（呼应雪山月光，左上高光）===== */
+  .hero { display: flex; justify-content: center; margin: 14px 0 36px; }
+  .core {
+    width: 280px; height: 280px; border-radius: 50%;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,0.22), rgba(255,255,255,0.04) 40%, transparent 58%),
+      radial-gradient(circle at 50% 50%, rgba(24,34,56,0.7), rgba(10,14,26,0.78));
+    border: 1px solid rgba(255,255,255,0.34);
+    box-shadow:
+      inset 6px 6px 22px rgba(255,255,255,0.06),
+      inset -8px -8px 26px rgba(0,0,0,0.35),
+      0 0 70px rgba(232,201,143,0.12),
+      0 14px 48px rgba(0,0,0,0.4);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; position: relative;
+  }
+  /* 月晕 */
+  .core::after {
+    content:''; position: absolute; inset: -18px; border-radius: 50%;
+    border: 1px solid rgba(232,201,143,0.3);
+    box-shadow: 0 0 60px rgba(232,201,143,0.18), inset 0 0 30px rgba(232,201,143,0.05);
+  }
+  .core-time { font-family: 'Cascadia Code', monospace; font-size: 42px; font-weight: 300; letter-spacing: .02em; text-shadow: 0 2px 14px rgba(0,0,0,0.55); }
+  .core-date { font-size: 12px; letter-spacing: .22em; margin-top: 6px; color: rgba(255,255,255,0.88); }
+  .core-label { font-size: 9px; letter-spacing: .32em; margin-top: 10px; color: #e8c98f; }
+  .focus {
+    margin-top: 14px; padding: 7px 16px;
+    background: linear-gradient(135deg, rgba(232,201,143,0.18), rgba(232,201,143,0.08));
+    border: 1px solid rgba(232,201,143,0.45);
+    border-radius: 100px;
+    font-size: 12px; color: #f0d9a8;
+    max-width: 230px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+
+  /* ===== 7 板块：雪地营地卡片（同光源+积雪+环境色）===== */
+  .grid7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 14px; }
+  .card {
+    position: relative;
+    /* 环境色渐变：雪地淡蓝白 → 山体深蓝灰（不是死黑！） */
+    background: linear-gradient(165deg, rgba(198,214,238,0.16) 0%, rgba(96,120,160,0.14) 38%, rgba(26,36,62,0.62) 100%);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 16px;
+    padding: 20px 10px 16px;
+    text-align: center;
+    /* 同光源：左上高光 + 右下落地投影（像站在雪地上） */
+    box-shadow:
+      inset 2px 2px 8px rgba(255,255,255,0.10),
+      inset -3px -3px 10px rgba(0,0,0,0.28),
+      0 10px 24px rgba(5,8,18,0.5);
+    transition: transform .22s cubic-bezier(0.16,1,0.3,1), border-color .22s, box-shadow .22s;
+    cursor: pointer;
+  }
+  /* 积雪盖（顶部白色圆弧，像雪落在卡片上） */
+  .card::before {
+    content:''; position: absolute; top: 6px; left: 12px; right: 12px; height: 10px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0.12));
+    border-radius: 8px 8px 4px 4px;
+    opacity: .85;
+  }
+  /* 左上月光高光点 */
+  .card::after {
+    content:''; position: absolute; top: 0; left: 0; width: 46px; height: 46px;
+    background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.16), transparent 70%);
+    border-radius: 16px 0 16px 0;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(232,201,143,0.6);
+    box-shadow:
+      inset 2px 2px 8px rgba(255,255,255,0.12),
+      inset -3px -3px 10px rgba(0,0,0,0.24),
+      0 14px 30px rgba(5,8,18,0.55),
+      0 0 24px rgba(232,201,143,0.10);
+  }
+  .card .ic { font-size: 22px; display: block; margin: 6px 0 8px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); position: relative; }
+  .card .name { font-size: 14px; font-weight: 600; letter-spacing: .06em; position: relative; text-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+  .card .sub { font-size: 10.5px; color: rgba(255,255,255,0.68); margin-top: 5px; position: relative; }
+
+  @media (max-width: 900px) {
+    .grid7 { grid-template-columns: repeat(4, 1fr); }
+  }
+  @media (max-width: 560px) {
+    .grid7 { grid-template-columns: repeat(3, 1fr); }
+    .core { width: 220px; height: 220px; }
+    .core-time { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="statusbar">
+    <div class="brand">COOPER<b>//</b>OS</div>
+    <div class="spacer"></div>
+    <div class="stat"><span class="dot"></span>系统在线</div>
+    <span class="clock" id="clock">--:--</span>
+  </div>
+
+  <div class="hero">
+    <div class="core">
+      <div class="core-time" id="bigclock">--:--:--</div>
+      <div class="core-date" id="bigdate">----.--.--</div>
+      <div class="core-label">C O O P E R // O S</div>
+      <div class="focus">🎯 今日聚焦：写一页 C 语言笔记</div>
+    </div>
+  </div>
+
+  <div class="grid7">
+    <div class="card"><span class="ic">📚</span><div class="name">学业</div><div class="sub">拆解·课程</div></div>
+    <div class="card"><span class="ic">💼</span><div class="name">工作</div><div class="sub">项目·里程碑</div></div>
+    <div class="card"><span class="ic">💬</span><div class="name">对话</div><div class="sub">与老师聊聊</div></div>
+    <div class="card"><span class="ic">🛠</span><div class="name">工具</div><div class="sub">常用链接</div></div>
+    <div class="card"><span class="ic">🏠</span><div class="name">生活</div><div class="sub">习惯·健康</div></div>
+    <div class="card"><span class="ic">📖</span><div class="name">知识库</div><div class="sub">笔记·沉淀</div></div>
+    <div class="card"><span class="ic">📓</span><div class="name">日记</div><div class="sub">记录每一天</div></div>
+  </div>
+</div>
+
+<script>
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function tick() {
+    const n = new Date();
+    document.getElementById('clock').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes());
+    document.getElementById('bigclock').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes()) + ':' + pad(n.getSeconds());
+    document.getElementById('bigdate').textContent = n.getFullYear() + '.' + pad(n.getMonth()+1) + '.' + pad(n.getDate());
+  }
+  tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>COOPER OS · 雪山界面（真实背景）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    min-height: 100vh;
+    background: url('snow_bg.png') center/cover no-repeat fixed;
+    color: #fff;
+    position: relative;
+  }
+  /* 暗色蒙层让文字可读（不遮雪山主体） */
+  body::before {
+    content:''; position: fixed; inset: 0;
+    background: linear-gradient(180deg, rgba(5,8,18,0.25) 0%, rgba(5,8,18,0.1) 40%, rgba(5,8,18,0.5) 100%);
+    z-index: 0;
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 28px 24px 40px; }
+
+  /* 状态栏：几乎透明，只有文字 */
+  .statusbar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 4px; font-size: 13px;
+    color: rgba(255,255,255,0.92);
+    text-shadow: 0 1px 8px rgba(0,0,0,0.5);
+  }
+  .brand { font-weight: 700; letter-spacing: .1em; }
+  .brand b { color: #e8c98f; }
+  .spacer { flex: 1; }
+  .stat { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,0.8); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #9ee8c8; box-shadow: 0 0 8px rgba(158,232,200,0.8); }
+  .clock { font-family: 'Cascadia Code', Consolas, monospace; }
+
+  /* 中央大圆盘：半透明白玉感（不是玻璃！） */
+  .hero { display: flex; justify-content: center; margin: 30px 0 44px; }
+  .core {
+    width: 250px; height: 250px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.16), rgba(10,14,26,0.55) 72%);
+    border: 1px solid rgba(255,255,255,0.35);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    backdrop-filter: none; /* 明确不用玻璃 */
+  }
+  .core-time { font-family: 'Cascadia Code', monospace; font-size: 40px; font-weight: 300; letter-spacing: .02em; text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
+  .core-date { font-size: 12px; letter-spacing: .2em; margin-top: 8px; color: rgba(255,255,255,0.85); }
+  .core-label { font-size: 10px; letter-spacing: .3em; margin-top: 12px; color: #e8c98f; }
+
+  /* 模块卡：深色磨砂但不用玻璃模糊 —— 用半透明深色 + 细白边 */
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px; }
+  .card {
+    background: rgba(8,12,24,0.55);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 16px;
+    padding: 20px;
+    transition: transform .25s cubic-bezier(0.16,1,0.3,1), border-color .25s;
+    cursor: pointer;
+  }
+  .card:hover { transform: translateY(-3px); border-color: rgba(232,201,143,0.5); }
+  .card .ic { font-size: 24px; display: block; margin-bottom: 10px; }
+  .card .name { font-size: 15px; font-weight: 600; }
+  .card .sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 5px; line-height: 1.6; }
+  .card .count { font-family: 'Cascadia Code', monospace; font-size: 20px; color: #e8c98f; margin-top: 8px; }
+
+  .wide { grid-column: span 2; }
+
+  .btn {
+    background: rgba(232,201,143,0.9); color: #0a0e1a;
+    border: none; border-radius: 10px; padding: 10px 20px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: transform .2s, background .2s;
+  }
+  .btn:hover { transform: translateY(-2px); background: rgba(240,214,160,1); }
+  .btn-ghost {
+    background: rgba(255,255,255,0.1); color: #fff;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 10px; padding: 10px 20px; font-size: 13px; cursor: pointer;
+    transition: background .2s, border-color .2s;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.18); border-color: rgba(255,255,255,0.5); }
+
+  @media (max-width: 768px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+    .core { width: 190px; height: 190px; }
+    .core-time { font-size: 30px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="statusbar">
+    <div class="brand">COOPER<b>//</b>OS</div>
+    <div class="spacer"></div>
+    <div class="stat"><span class="dot"></span>系统在线</div>
+    <span class="clock" id="clock">--:--</span>
+  </div>
+
+  <div class="hero">
+    <div class="core">
+      <div class="core-time" id="bigclock">--:--:--</div>
+      <div class="core-date" id="bigdate">----.--.--</div>
+      <div class="core-label">C O O P E R // O S</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card"><span class="ic">📚</span><div class="name">学业</div><div class="sub">拆解 · 课程 · 追踪</div><div class="count">0</div></div>
+    <div class="card"><span class="ic">💼</span><div class="name">工作</div><div class="sub">项目 · 里程碑</div><div class="count">0</div></div>
+    <div class="card"><span class="ic">🏠</span><div class="name">生活</div><div class="sub">习惯 · 健康</div><div class="count">0</div></div>
+    <div class="card"><span class="ic">📓</span><div class="name">日记</div><div class="sub">记录每一天</div><div class="count">0</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="card wide">
+      <div class="name">今日聚焦</div>
+      <div class="sub" style="margin-top:8px">— 山间空旷，记下今天最重要的事 —</div>
+      <div style="margin-top:12px;display:flex;gap:10px">
+        <button class="btn-ghost" style="flex:1">＋ 添加聚焦</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="name">学习追踪</div>
+      <div class="sub" style="margin-top:8px">C · Python · LeetCode</div>
+      <div style="margin-top:12px"><button class="btn" style="width:100%">开始学习</button></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function tick() {
+    const n = new Date();
+    document.getElementById('clock').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes());
+    document.getElementById('bigclock').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes()) + ':' + pad(n.getSeconds());
+    document.getElementById('bigdate').textContent = n.getFullYear() + '.' + pad(n.getMonth()+1) + '.' + pad(n.getDate());
+  }
+  tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>

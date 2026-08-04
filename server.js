@@ -192,6 +192,22 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  /* 静态资源（安全白名单：仅图片/图标/字体，禁路径穿越） */
+  if (req.method === 'GET' && /^\.(png|jpe?g|webp|gif|svg|ico)$/i.test(path.extname(url))) {
+    const safeName = path.basename(url); // 只取文件名，杜绝 ../ 穿越
+    const file = path.join(__dirname, safeName);
+    const MIME = {
+      '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon'
+    };
+    fs.readFile(file, (err, data) => {
+      if (err) { res.writeHead(404); res.end('Not Found'); return; }
+      res.writeHead(200, { 'Content-Type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream' });
+      res.end(data);
+    });
+    return;
+  }
+
   /* 保存数据：POST /api/save { key, value } */
   if (url === '/api/save' && req.method === 'POST') {
     // H1+M3 修复：body 大小限制（防 DoS）+ key 白名单（防任意写/原型污染）

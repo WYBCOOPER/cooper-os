@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>COOPER OS · 峰顶手动定位（拖拽）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #060a16; color: #fff;
+    font-family: -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    display: flex; justify-content: center;
+    padding: 16px 20px 60px;
+  }
+  .wrap { width: 100%; max-width: 1240px; }
+  .bar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 4px 14px; flex-wrap: wrap;
+  }
+  .bar h2 { font-size: 15px; color: #e8c98f; letter-spacing: .08em; font-weight: 600; }
+  .bar p { font-size: 12px; color: rgba(255,255,255,.7); }
+  .btn {
+    background: linear-gradient(135deg, #e8c98f, #d4af6a); color: #0a0e1a;
+    border: none; border-radius: 10px; padding: 9px 18px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    transition: transform .15s;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn.ghost { background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.25); }
+
+  .scene {
+    position: relative; width: 100%;
+    border-radius: 18px; overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    user-select: none;
+    touch-action: none;
+  }
+  .scene img { display: block; width: 100%; height: auto; pointer-events: none; }
+
+  /* 可拖拽标记 */
+  .drag {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 46px; height: 46px;
+    cursor: grab;
+    z-index: 5;
+    touch-action: none;
+  }
+  .drag:active { cursor: grabbing; }
+  .drag .ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.75), rgba(232,201,143,.5) 50%, rgba(232,201,143,.12) 100%);
+    border: 2px solid rgba(255,255,255,.65);
+    box-shadow: 0 0 18px rgba(232,201,143,.5), 0 3px 10px rgba(0,0,0,.5);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .drag .ic { font-size: 17px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.45)); }
+  .drag .tag {
+    position: absolute; top: 120%; left: 50%; transform: translateX(-50%);
+    font-size: 12px; font-weight: 600; letter-spacing: .06em; color: #fff;
+    text-shadow: 0 1px 6px rgba(0,0,0,.95);
+    white-space: nowrap; background: rgba(0,0,0,.45);
+    padding: 2px 8px; border-radius: 100px;
+  }
+  .drag.active .ring { box-shadow: 0 0 30px rgba(232,201,143,.9), 0 3px 10px rgba(0,0,0,.5); }
+
+  /* 坐标输出 */
+  #out {
+    margin-top: 16px; padding: 14px;
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15);
+    border-radius: 12px;
+    font-family: 'Cascadia Code', Consolas, monospace;
+    font-size: 12px; color: #9ee8c8;
+    white-space: pre-wrap; word-break: break-all;
+    min-height: 60px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <h2>⛰ 峰顶手动定位</h2>
+    <p>把 7 个金色圆点 <b>拖到新雪山图的峰顶</b>上（按高度依次：主峰=工作），然后点「生成坐标」</p>
+    <div style="flex:1"></div>
+    <button class="btn ghost" onclick="resetAll()">重置</button>
+    <button class="btn" onclick="genCode()">生成坐标</button>
+  </div>
+
+  <div class="scene" id="scene">
+    <img src="snow_peaks_v6.png" alt="">
+  </div>
+
+  <div id="out">拖拽完成后点「生成坐标」，把这里的内容复制发给老师～</div>
+</div>
+
+<script>
+  const ITEMS = [
+    { key: 'diary',   ic: '📓', name: '日记' },
+    { key: 'study',   ic: '📚', name: '学业' },
+    { key: 'tools',   ic: '🛠', name: '工具' },
+    { key: 'chat',    ic: '💬', name: '对话' },
+    { key: 'work',    ic: '💼', name: '工作' },
+    { key: 'library', ic: '📖', name: '知识库' },
+    { key: 'life',    ic: '🏠', name: '生活' }
+  ];
+  // 初始位置（乱序分布，方便拖）
+  const INIT = [
+    { l: 12, t: 82 }, { l: 25, t: 70 }, { l: 38, t: 78 }, { l: 50, t: 55 },
+    { l: 62, t: 72 }, { l: 75, t: 80 }, { l: 88, t: 70 }
+  ];
+
+  const scene = document.getElementById('scene');
+  const out = document.getElementById('out');
+  let items = [];
+
+  function build() {
+    scene.querySelectorAll('.drag').forEach(e => e.remove());
+    items = [];
+    ITEMS.forEach((it, i) => {
+      const el = document.createElement('div');
+      el.className = 'drag';
+      el.innerHTML = '<div class="ring"><span class="ic">' + it.ic + '</span></div><div class="tag">' + it.name + '</div>';
+      scene.appendChild(el);
+      const pos = INIT[i];
+      el.style.left = pos.l + '%';
+      el.style.top = pos.t + '%';
+      items.push({ el, it, l: pos.l, t: pos.t, active: false });
+      makeDraggable(el, i);
+    });
+  }
+
+  function makeDraggable(el, i) {
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      const item = items[i];
+      item.active = true;
+      el.classList.add('active');
+      el.setPointerCapture(e.pointerId);
+      moveTo(e, el, i);
+    });
+    el.addEventListener('pointermove', e => {
+      if (items[i].active) moveTo(e, el, i);
+    });
+    el.addEventListener('pointerup', e => { items[i].active = false; el.classList.remove('active'); });
+    el.addEventListener('pointercancel', e => { items[i].active = false; el.classList.remove('active'); });
+  }
+
+  function moveTo(e, el, i) {
+    const r = scene.getBoundingClientRect();
+    let l = (e.clientX - r.left) / r.width * 100;
+    let t = (e.clientY - r.top) / r.height * 100;
+    l = Math.max(1, Math.min(99, l));
+    t = Math.max(1, Math.min(99, t));
+    el.style.left = l + '%';
+    el.style.top = t + '%';
+    items[i].l = Math.round(l * 10) / 10;
+    items[i].t = Math.round(t * 10) / 10;
+  }
+
+  function resetAll() { build(); }
+
+  function genCode() {
+    const lines = items.map((it, i) => {
+      const p = it.it;
+      return "{ key:'" + p.key + "', ic:'" + p.ic + "', name:'" + p.name + "', x:" + it.l + ", y:" + it.t + " }";
+    });
+    out.textContent = '[\n  ' + lines.join(',\n  ') + '\n]';
+    out.style.borderColor = 'rgba(158,232,200,.5)';
+  }
+
+  build();
+</script>
+</body>
+</html>

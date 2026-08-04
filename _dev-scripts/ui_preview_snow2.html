@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>COOPER OS · 雪山方案 v2</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    min-height: 100vh;
+    background: url('snow_bg.png') center/cover no-repeat fixed;
+    color: #fff;
+  }
+  /* 蒙层：顶部淡、底部深（雪山主体透出，底部文字可读） */
+  body::before {
+    content:''; position: fixed; inset: 0; z-index: 0;
+    background: linear-gradient(180deg, rgba(4,7,16,0.18) 0%, rgba(4,7,16,0.06) 35%, rgba(4,7,16,0.62) 100%);
+  }
+
+  .app { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 26px 24px 44px; }
+
+  /* 状态栏：简洁悬浮 */
+  .statusbar {
+    display: flex; align-items: center; gap: 16px;
+    padding: 10px 6px; font-size: 13px;
+    color: rgba(255,255,255,0.95);
+    text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+  }
+  .brand { font-weight: 700; letter-spacing: .12em; }
+  .brand b { color: #e8c98f; }
+  .spacer { flex: 1; }
+  .stat { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,0.85); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #9ee8c8; box-shadow: 0 0 8px rgba(158,232,200,0.9); }
+  .clock { font-family: 'Cascadia Code', Consolas, monospace; letter-spacing: .04em; }
+
+  /* 中央圆盘：白玉磨砂质感（非玻璃） */
+  .hero { display: flex; justify-content: center; margin: 18px 0 38px; }
+  .core {
+    width: 280px; height: 280px; border-radius: 50%;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,0.20), rgba(255,255,255,0.05) 38%, transparent 55%),
+      radial-gradient(circle at 50% 50%, rgba(20,28,48,0.68), rgba(10,14,26,0.78));
+    border: 1px solid rgba(255,255,255,0.32);
+    box-shadow:
+      inset 0 0 60px rgba(255,255,255,0.04),
+      0 10px 44px rgba(0,0,0,0.42),
+      0 0 0 1px rgba(232,201,143,0.14);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; position: relative;
+  }
+  /* 顶部金色细弧（旭日意象） */
+  .core::before {
+    content:''; position: absolute; top: 8px; left: 22%; right: 22%; height: 1.5px;
+    background: linear-gradient(90deg, transparent, rgba(232,201,143,0.7), transparent);
+    border-radius: 2px;
+  }
+  .core-time { font-family: 'Cascadia Code', monospace; font-size: 42px; font-weight: 300; letter-spacing: .02em; text-shadow: 0 2px 14px rgba(0,0,0,0.55); }
+  .core-date { font-size: 12px; letter-spacing: .22em; margin-top: 6px; color: rgba(255,255,255,0.88); }
+  .core-label { font-size: 9px; letter-spacing: .32em; margin-top: 10px; color: #e8c98f; }
+  /* 今日聚焦回到圆盘 */
+  .focus {
+    margin-top: 14px; padding: 7px 16px;
+    background: rgba(232,201,143,0.12);
+    border: 1px solid rgba(232,201,143,0.4);
+    border-radius: 100px;
+    font-size: 12px; color: #f0d9a8;
+    max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+
+  /* 7 板块：卡片网格（借鉴参考案例：卡片式+留白） */
+  .grid7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
+  .card {
+    background: rgba(10,14,26,0.6);
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 14px;
+    padding: 18px 10px;
+    text-align: center;
+    transition: transform .22s cubic-bezier(0.16,1,0.3,1), border-color .22s, background .22s;
+    cursor: pointer;
+    backdrop-filter: none;
+  }
+  .card:hover { transform: translateY(-4px); border-color: rgba(232,201,143,0.55); background: rgba(14,20,36,0.72); }
+  .card .ic { font-size: 22px; display: block; margin-bottom: 8px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4)); }
+  .card .name { font-size: 14px; font-weight: 600; letter-spacing: .06em; }
+  .card .sub { font-size: 10.5px; color: rgba(255,255,255,0.62); margin-top: 5px; }
+
+  @media (max-width: 900px) {
+    .grid7 { grid-template-columns: repeat(4, 1fr); }
+  }
+  @media (max-width: 560px) {
+    .grid7 { grid-template-columns: repeat(3, 1fr); }
+    .core { width: 220px; height: 220px; }
+    .core-time { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="statusbar">
+    <div class="brand">COOPER<b>//</b>OS</div>
+    <div class="spacer"></div>
+    <div class="stat"><span class="dot"></span>系统在线</div>
+    <span class="clock" id="clock">--:--</span>
+  </div>
+
+  <div class="hero">
+    <div class="core">
+      <div class="core-time" id="bigclock">--:--:--</div>
+      <div class="core-date" id="bigdate">----.--.--</div>
+      <div class="core-label">C O O P E R // O S</div>
+      <div class="focus">🎯 今日聚焦：写一页 C 语言笔记</div>
+    </div>
+  </div>
+
+  <!-- 7 个板块：学业/工作/对话/工具/生活/知识库/日记 -->
+  <div class="grid7">
+    <div class="card"><span class="ic">📚</span><div class="name">学业</div><div class="sub">拆解·课程</div></div>
+    <div class="card"><span class="ic">💼</span><div class="name">工作</div><div class="sub">项目·里程碑</div></div>
+    <div class="card"><span class="ic">💬</span><div class="name">对话</div><div class="sub">与老师聊聊</div></div>
+    <div class="card"><span class="ic">🛠</span><div class="name">工具</div><div class="sub">常用链接</div></div>
+    <div class="card"><span class="ic">🏠</span><div class="name">生活</div><div class="sub">习惯·健康</div></div>
+    <div class="card"><span class="ic">📖</span><div class="name">知识库</div><div class="sub">笔记·沉淀</div></div>
+    <div class="card"><span class="ic">📓</span><div class="name">日记</div><div class="sub">记录每一天</div></div>
+  </div>
+</div>
+
+<script>
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function tick() {
+    const n = new Date();
+    document.getElementById('clock').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes());
+    document.getElementById('bigclock').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes()) + ':' + pad(n.getSeconds());
+    document.getElementById('bigdate').textContent = n.getFullYear() + '.' + pad(n.getMonth()+1) + '.' + pad(n.getDate());
+  }
+  tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>

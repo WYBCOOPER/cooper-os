@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>COOPER OS · 雪山 v10（原图+真实坐标）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    min-height: 100vh;
+    background: #060a16;
+    color: #fff;
+    display: flex; justify-content: center;
+    padding: 14px 20px 40px;
+  }
+
+  .frame { width: 100%; max-width: 1240px; }
+
+  .scene {
+    position: relative;
+    width: 100%;
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+  }
+  .scene .bg { display: block; width: 100%; height: auto; }
+
+  /* ===== 圆球：水平 50% 居中，垂直下移（top 24%，避开状态栏）===== */
+  .moon {
+    position: absolute;
+    left: 50%; top: 24%;
+    transform: translateX(-50%) translateY(-50%);
+    width: clamp(150px, 18vw, 240px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,0.22), rgba(255,255,255,0.05) 40%, transparent 58%),
+      radial-gradient(circle at 50% 50%, rgba(24,34,56,0.68), rgba(10,14,26,0.74));
+    border: 1px solid rgba(255,255,255,0.34);
+    box-shadow:
+      inset 6px 6px 20px rgba(255,255,255,0.06),
+      inset -8px -8px 24px rgba(0,0,0,0.34),
+      0 0 70px rgba(232,201,143,0.14),
+      0 14px 46px rgba(0,0,0,0.42);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    z-index: 3;
+  }
+  .moon-time { font-family: 'Cascadia Code', Consolas, monospace; font-size: clamp(26px, 3.2vw, 40px); font-weight: 300; letter-spacing: .02em; text-shadow: 0 2px 14px rgba(0,0,0,0.55); }
+  .moon-date { font-size: clamp(9px, 1.1vw, 12px); letter-spacing: .2em; margin-top: 5px; color: rgba(255,255,255,0.9); }
+  .moon-label { font-size: clamp(7px, .85vw, 9px); letter-spacing: .3em; margin-top: 8px; color: #e8c98f; }
+  .moon .focus {
+    margin-top: 10px; padding: 5px 14px;
+    background: linear-gradient(135deg, rgba(232,201,143,0.2), rgba(232,201,143,0.08));
+    border: 1px solid rgba(232,201,143,0.5);
+    border-radius: 100px;
+    font-size: clamp(9px, 1.05vw, 12px); color: #f0d9a8;
+    max-width: 88%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+
+  /* ===== 峰顶按钮：宝宝拖拽的真实坐标 ===== */
+  .peak-btn {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: clamp(30px, 3.4vw, 40px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.7), rgba(232,201,143,0.5) 50%, rgba(232,201,143,0.15) 100%);
+    border: 1.5px solid rgba(255,255,255,0.6);
+    box-shadow:
+      0 0 14px rgba(232,201,143,0.42),
+      0 3px 10px rgba(0,0,0,0.5),
+      inset 0 1px 3px rgba(255,255,255,0.5);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: transform .25s cubic-bezier(0.16,1,0.3,1), box-shadow .25s;
+    z-index: 4;
+  }
+  .peak-btn .ic { font-size: clamp(13px, 1.4vw, 16px); filter: drop-shadow(0 1px 2px rgba(0,0,0,0.45)); }
+  .peak-btn:hover { transform: translate(-50%, -50%) scale(1.18); box-shadow: 0 0 28px rgba(232,201,143,0.7), 0 6px 16px rgba(0,0,0,0.5); }
+  .peak-btn:hover .btn-name { opacity: 1; }
+
+  .btn-name {
+    position: absolute; top: 118%; left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(10px, 1.1vw, 13px);
+    font-weight: 600; letter-spacing: .1em;
+    color: #fff;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.95), 0 0 16px rgba(0,0,0,0.7);
+    white-space: nowrap;
+    opacity: 0; transition: opacity .25s;
+    pointer-events: none;
+  }
+
+  /* ===== 状态栏 ===== */
+  .statusbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px 6px; font-size: 13px;
+    color: rgba(255,255,255,0.95);
+    text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+  }
+  .brand { font-weight: 700; letter-spacing: .12em; }
+  .brand b { color: #e8c98f; }
+  .spacer { flex: 1; }
+  .stat { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,0.85); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #9ee8c8; box-shadow: 0 0 8px rgba(158,232,200,0.9); }
+  .clock { font-family: 'Cascadia Code', Consolas, monospace; }
+
+  @media (max-width: 640px) {
+    .btn-name { font-size: 9px; }
+  }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="statusbar">
+    <div class="brand">COOPER<b>//</b>OS</div>
+    <div class="spacer"></div>
+    <div class="stat"><span class="dot"></span>系统在线</div>
+    <span class="clock" id="clock">--:--</span>
+  </div>
+
+  <div class="scene">
+    <img src="snow_bg.png" class="bg" alt="">
+
+    <!-- 圆球：居中 + 下移（不占上栏） -->
+    <div class="moon">
+      <div class="moon-time" id="bigclock">--:--:--</div>
+      <div class="moon-date" id="bigdate">----.--.--</div>
+      <div class="moon-label">C O O P E R // O S</div>
+      <div class="focus">🎯 今日聚焦：写一页 C 语言笔记</div>
+    </div>
+
+    <!-- 宝宝拖拽的真实峰顶坐标 -->
+    <div class="peak-btn" style="left:63.5%; top:50.1%">
+      <span class="ic">📓</span><span class="btn-name">日记</span>
+    </div>
+    <div class="peak-btn" style="left:39.6%; top:62.4%">
+      <span class="ic">📚</span><span class="btn-name">学业</span>
+    </div>
+    <div class="peak-btn" style="left:25.9%; top:70.5%">
+      <span class="ic">🛠</span><span class="btn-name">工具</span>
+    </div>
+    <div class="peak-btn" style="left:42.8%; top:52.1%">
+      <span class="ic">💬</span><span class="btn-name">对话</span>
+    </div>
+    <div class="peak-btn" style="left:52.3%; top:69.1%">
+      <span class="ic">💼</span><span class="btn-name">工作</span>
+    </div>
+    <div class="peak-btn" style="left:60.9%; top:58.3%">
+      <span class="ic">📖</span><span class="btn-name">知识库</span>
+    </div>
+    <div class="peak-btn" style="left:81.6%; top:68.5%">
+      <span class="ic">🏠</span><span class="btn-name">生活</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function tick() {
+    const n = new Date();
+    document.getElementById('clock').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes());
+    document.getElementById('bigclock').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes()) + ':' + pad(n.getSeconds());
+    document.getElementById('bigdate').textContent = n.getFullYear() + '.' + pad(n.getMonth()+1) + '.' + pad(n.getDate());
+  }
+  tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>

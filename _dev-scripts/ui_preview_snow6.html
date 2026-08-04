@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>COOPER OS · 雪山方案 v6（灯火光点）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    min-height: 100vh;
+    background: #060a16;
+    color: #fff;
+    display: flex; justify-content: center;
+    padding: 16px 20px 40px;
+  }
+
+  .frame { width: 100%; max-width: 1240px; }
+
+  .scene {
+    position: relative;
+    width: 100%;
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+  }
+  .scene .bg { display: block; width: 100%; height: auto; }
+
+  /* ===== 月亮圆盘：对齐主峰中轴（left 55%）===== */
+  .moon {
+    position: absolute;
+    left: 55%; top: 5%;
+    transform: translateX(-50%);
+    width: clamp(150px, 19vw, 250px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,0.24), rgba(255,255,255,0.05) 40%, transparent 58%),
+      radial-gradient(circle at 50% 50%, rgba(26,38,64,0.62), rgba(10,14,26,0.7));
+    border: 1px solid rgba(255,255,255,0.36);
+    box-shadow:
+      inset 6px 6px 22px rgba(255,255,255,0.07),
+      inset -8px -8px 26px rgba(0,0,0,0.35),
+      0 0 80px rgba(232,201,143,0.16),
+      0 16px 50px rgba(0,0,0,0.45);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    z-index: 3;
+  }
+  .moon::after {
+    content:''; position: absolute; inset: -16px; border-radius: 50%;
+    border: 1px solid rgba(232,201,143,0.28);
+    box-shadow: 0 0 50px rgba(232,201,143,0.14);
+  }
+  .moon-time { font-family: 'Cascadia Code', Consolas, monospace; font-size: clamp(26px, 3.4vw, 42px); font-weight: 300; letter-spacing: .02em; text-shadow: 0 2px 14px rgba(0,0,0,0.55); }
+  .moon-date { font-size: clamp(9px, 1.1vw, 12px); letter-spacing: .2em; margin-top: 5px; color: rgba(255,255,255,0.9); }
+  .moon-label { font-size: clamp(7px, .85vw, 9px); letter-spacing: .3em; margin-top: 8px; color: #e8c98f; }
+  .moon .focus {
+    margin-top: 10px; padding: 5px 14px;
+    background: linear-gradient(135deg, rgba(232,201,143,0.2), rgba(232,201,143,0.08));
+    border: 1px solid rgba(232,201,143,0.5);
+    border-radius: 100px;
+    font-size: clamp(9px, 1.05vw, 12px); color: #f0d9a8;
+    max-width: 88%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+
+  /* ===== 板块：山间灯火光点（无尖角、无标签框）===== */
+  .orb {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: clamp(36px, 4.2vw, 50px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.55), rgba(232,201,143,0.28) 55%, rgba(232,201,143,0.06) 100%);
+    border: 1px solid rgba(255,255,255,0.35);
+    box-shadow:
+      0 0 18px rgba(232,201,143,0.35),
+      0 4px 14px rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: transform .28s cubic-bezier(0.16,1,0.3,1), box-shadow .28s;
+    z-index: 4;
+  }
+  .orb .ic { font-size: clamp(14px, 1.8vw, 20px); filter: drop-shadow(0 1px 3px rgba(0,0,0,0.45)); }
+  .orb:hover { transform: translate(-50%, -50%) scale(1.18); box-shadow: 0 0 34px rgba(232,201,143,0.6), 0 6px 20px rgba(0,0,0,0.45); }
+  .orb:hover .orb-name { opacity: 1; transform: translate(-50%, 4px); }
+  .orb:hover .orb-sub { opacity: 1; }
+
+  /* 悬停浮现的名字（诗意小字） */
+  .orb-name {
+    position: absolute; top: 100%; left: 50%;
+    transform: translate(-50%, 0);
+    font-size: clamp(11px, 1.2vw, 14px);
+    font-weight: 600; letter-spacing: .14em;
+    color: #fff;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.9), 0 0 16px rgba(0,0,0,0.6);
+    white-space: nowrap;
+    opacity: 0; transition: opacity .28s, transform .28s;
+    pointer-events: none;
+    padding-top: 6px;
+  }
+  .orb-sub {
+    position: absolute; top: 100%; left: 50%;
+    transform: translateX(-50%);
+    margin-top: 22px;
+    font-size: clamp(8px, .85vw, 10px);
+    color: rgba(255,255,255,0.75);
+    letter-spacing: .1em;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+    white-space: nowrap;
+    opacity: 0; transition: opacity .28s;
+    pointer-events: none;
+  }
+
+  /* 山脚营地灯火：更小的光点 */
+  .orb.ground { width: clamp(30px, 3.4vw, 40px); background: radial-gradient(circle at 35% 30%, rgba(255,255,255,0.5), rgba(160,190,230,0.25) 55%, rgba(160,190,230,0.05) 100%); }
+
+  /* ===== 状态栏 ===== */
+  .statusbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 6px; font-size: 13px;
+    color: rgba(255,255,255,0.95);
+    text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+  }
+  .brand { font-weight: 700; letter-spacing: .12em; }
+  .brand b { color: #e8c98f; }
+  .spacer { flex: 1; }
+  .stat { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,0.85); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #9ee8c8; box-shadow: 0 0 8px rgba(158,232,200,0.9); }
+  .clock { font-family: 'Cascadia Code', Consolas, monospace; }
+
+  @media (max-width: 640px) {
+    .orb-sub { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="statusbar">
+    <div class="brand">COOPER<b>//</b>OS</div>
+    <div class="spacer"></div>
+    <div class="stat"><span class="dot"></span>系统在线</div>
+    <span class="clock" id="clock">--:--</span>
+  </div>
+
+  <div class="scene">
+    <img src="snow_bg.png" class="bg" alt="">
+
+    <!-- 月亮：对齐主峰中轴 -->
+    <div class="moon">
+      <div class="moon-time" id="bigclock">--:--:--</div>
+      <div class="moon-date" id="bigdate">----.--.--</div>
+      <div class="moon-label">C O O P E R // O S</div>
+      <div class="focus">🎯 今日聚焦：写一页 C 语言笔记</div>
+    </div>
+
+    <!-- 山间灯火：光点（悬停浮现名字） -->
+    <div class="orb" style="left:22%; top:63%">
+      <span class="ic">📚</span>
+      <span class="orb-name">学业</span>
+      <span class="orb-sub">拆解 · 课程</span>
+    </div>
+    <div class="orb" style="left:40%; top:54%">
+      <span class="ic">💼</span>
+      <span class="orb-name">工作</span>
+      <span class="orb-sub">项目 · 里程碑</span>
+    </div>
+    <div class="orb" style="left:55%; top:46%">
+      <span class="ic">🗻</span>
+      <span class="orb-name">主峰</span>
+      <span class="orb-sub">· 制高点 ·</span>
+    </div>
+    <div class="orb" style="left:70%; top:54%">
+      <span class="ic">💬</span>
+      <span class="orb-name">对话</span>
+      <span class="orb-sub">与老师聊聊</span>
+    </div>
+    <div class="orb" style="left:84%; top:63%">
+      <span class="ic">📓</span>
+      <span class="orb-name">日记</span>
+      <span class="orb-sub">记录每一天</span>
+    </div>
+
+    <!-- 山脚雪地灯火 -->
+    <div class="orb ground" style="left:14%; top:88%">
+      <span class="ic">🛠</span>
+      <span class="orb-name">工具</span>
+      <span class="orb-sub">常用链接</span>
+    </div>
+    <div class="orb ground" style="left:33%; top:92%">
+      <span class="ic">🏠</span>
+      <span class="orb-name">生活</span>
+      <span class="orb-sub">习惯 · 健康</span>
+    </div>
+    <div class="orb ground" style="left:50%; top:94%">
+      <span class="ic">📖</span>
+      <span class="orb-name">知识库</span>
+      <span class="orb-sub">笔记 · 沉淀</span>
+    </div>
+    <div class="orb ground" style="left:68%; top:92%">
+      <span class="ic">🍵</span>
+      <span class="orb-name">茶歇</span>
+      <span class="orb-sub">休息一下</span>
+    </div>
+    <div class="orb ground" style="left:85%; top:88%">
+      <span class="ic">🌙</span>
+      <span class="orb-name">晚安</span>
+      <span class="orb-sub">今晚好梦</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function tick() {
+    const n = new Date();
+    document.getElementById('clock').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes());
+    document.getElementById('bigclock').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes()) + ':' + pad(n.getSeconds());
+    document.getElementById('bigdate').textContent = n.getFullYear() + '.' + pad(n.getMonth()+1) + '.' + pad(n.getDate());
+  }
+  tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>

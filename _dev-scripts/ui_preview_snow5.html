@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>COOPER OS · 雪山方案 v5（营地地图）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    min-height: 100vh;
+    background: #060a16;
+    color: #fff;
+    display: flex; justify-content: center;
+    padding: 16px 20px 40px;
+  }
+
+  .frame { width: 100%; max-width: 1240px; }
+
+  /* 场景容器：img 撑高，pin 用百分比精确叠加 */
+  .scene {
+    position: relative;
+    width: 100%;
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.55);
+  }
+  .scene .bg { display: block; width: 100%; height: auto; }
+
+  /* ===== 月亮圆盘（天空中央，雪山上方）===== */
+  .moon {
+    position: absolute;
+    left: 50%; top: 6%;
+    transform: translateX(-50%);
+    width: clamp(150px, 19vw, 250px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 32% 26%, rgba(255,255,255,0.24), rgba(255,255,255,0.05) 40%, transparent 58%),
+      radial-gradient(circle at 50% 50%, rgba(26,38,64,0.62), rgba(10,14,26,0.7));
+    border: 1px solid rgba(255,255,255,0.36);
+    box-shadow:
+      inset 6px 6px 22px rgba(255,255,255,0.07),
+      inset -8px -8px 26px rgba(0,0,0,0.35),
+      0 0 80px rgba(232,201,143,0.16),
+      0 16px 50px rgba(0,0,0,0.45);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center;
+    z-index: 3;
+  }
+  .moon::after {
+    content:''; position: absolute; inset: -16px; border-radius: 50%;
+    border: 1px solid rgba(232,201,143,0.28);
+    box-shadow: 0 0 50px rgba(232,201,143,0.14);
+  }
+  .moon-time { font-family: 'Cascadia Code', Consolas, monospace; font-size: clamp(26px, 3.4vw, 42px); font-weight: 300; letter-spacing: .02em; text-shadow: 0 2px 14px rgba(0,0,0,0.55); }
+  .moon-date { font-size: clamp(9px, 1.1vw, 12px); letter-spacing: .2em; margin-top: 5px; color: rgba(255,255,255,0.9); }
+  .moon-label { font-size: clamp(7px, .85vw, 9px); letter-spacing: .3em; margin-top: 8px; color: #e8c98f; }
+  .moon .focus {
+    margin-top: 10px; padding: 5px 14px;
+    background: linear-gradient(135deg, rgba(232,201,143,0.2), rgba(232,201,143,0.08));
+    border: 1px solid rgba(232,201,143,0.5);
+    border-radius: 100px;
+    font-size: clamp(9px, 1.05vw, 12px); color: #f0d9a8;
+    max-width: 88%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+
+  /* ===== 营地 pin：地图大头针式（水滴形）===== */
+  .pin {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; align-items: center;
+    cursor: pointer;
+    z-index: 4;
+    transition: transform .25s cubic-bezier(0.16,1,0.3,1);
+  }
+  .pin:hover { transform: translate(-50%, -50%) scale(1.12); }
+  .pin-icon {
+    width: clamp(34px, 4vw, 46px);
+    aspect-ratio: 1;
+    border-radius: 50% 50% 50% 0;   /* 水滴/大头针形 */
+    transform: rotate(-45deg);
+    background: linear-gradient(150deg, rgba(232,201,143,0.92), rgba(200,160,90,0.85));
+    box-shadow:
+      0 6px 18px rgba(0,0,0,0.45),
+      0 0 22px rgba(232,201,143,0.25);
+    display: flex; align-items: center; justify-content: center;
+    border: 1.5px solid rgba(255,255,255,0.55);
+  }
+  .pin-icon span { transform: rotate(45deg); font-size: clamp(14px, 1.7vw, 19px); filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4)); }
+  .pin-label {
+    margin-top: 4px;
+    font-size: clamp(10px, 1.15vw, 13px);
+    font-weight: 600;
+    letter-spacing: .08em;
+    color: #fff;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.85), 0 0 12px rgba(0,0,0,0.5);
+    white-space: nowrap;
+  }
+  .pin-sub {
+    font-size: clamp(8px, .9vw, 10px);
+    color: rgba(255,255,255,0.75);
+    text-shadow: 0 1px 5px rgba(0,0,0,0.9);
+    white-space: nowrap;
+    letter-spacing: .04em;
+  }
+
+  /* 雪地平台上的 pin 落地小影 */
+  .pin.ground { filter: none; }
+  .pin.ground .pin-icon { border-radius: 50%; transform: none; } /* 山脚营地用圆点 */
+
+  /* ===== 状态栏（悬浮顶部）===== */
+  .statusbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 6px; font-size: 13px;
+    color: rgba(255,255,255,0.95);
+    text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+  }
+  .brand { font-weight: 700; letter-spacing: .12em; }
+  .brand b { color: #e8c98f; }
+  .spacer { flex: 1; }
+  .stat { display: flex; align-items: center; gap: 6px; font-size: 12px; color: rgba(255,255,255,0.85); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #9ee8c8; box-shadow: 0 0 8px rgba(158,232,200,0.9); }
+  .clock { font-family: 'Cascadia Code', Consolas, monospace; }
+
+  @media (max-width: 640px) {
+    .pin-label { font-size: 9px; }
+    .pin-sub { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="statusbar">
+    <div class="brand">COOPER<b>//</b>OS</div>
+    <div class="spacer"></div>
+    <div class="stat"><span class="dot"></span>系统在线</div>
+    <span class="clock" id="clock">--:--</span>
+  </div>
+
+  <!-- 雪山场景：img 精确撑开，pin 按百分比钉在山上 -->
+  <div class="scene">
+    <img src="snow_bg.png" class="bg" alt="">
+
+    <!-- 月亮（天空中央） -->
+    <div class="moon">
+      <div class="moon-time" id="bigclock">--:--:--</div>
+      <div class="moon-date" id="bigdate">----.--.--</div>
+      <div class="moon-label">C O O P E R // O S</div>
+      <div class="focus">🎯 今日聚焦：写一页 C 语言笔记</div>
+    </div>
+
+    <!-- 山腰：三座峰（左峰/主峰/右峰）用大头针 -->
+    <div class="pin" style="left:20%; top:64%">
+      <div class="pin-icon"><span>📚</span></div>
+      <div class="pin-label">学业</div>
+      <div class="pin-sub">拆解 · 课程</div>
+    </div>
+    <div class="pin" style="left:50%; top:55%">
+      <div class="pin-icon"><span>💼</span></div>
+      <div class="pin-label">工作</div>
+      <div class="pin-sub">项目 · 里程碑</div>
+    </div>
+    <div class="pin" style="left:80%; top:64%">
+      <div class="pin-icon"><span>💬</span></div>
+      <div class="pin-label">对话</div>
+      <div class="pin-sub">与老师聊聊</div>
+    </div>
+
+    <!-- 山脚雪地：四个营地（圆点） -->
+    <div class="pin ground" style="left:12%; top:88%">
+      <div class="pin-icon"><span>🛠</span></div>
+      <div class="pin-label">工具</div>
+      <div class="pin-sub">常用链接</div>
+    </div>
+    <div class="pin ground" style="left:34%; top:93%">
+      <div class="pin-icon"><span>🏠</span></div>
+      <div class="pin-label">生活</div>
+      <div class="pin-sub">习惯 · 健康</div>
+    </div>
+    <div class="pin ground" style="left:62%; top:93%">
+      <div class="pin-icon"><span>📖</span></div>
+      <div class="pin-label">知识库</div>
+      <div class="pin-sub">笔记 · 沉淀</div>
+    </div>
+    <div class="pin ground" style="left:86%; top:88%">
+      <div class="pin-icon"><span>📓</span></div>
+      <div class="pin-label">日记</div>
+      <div class="pin-sub">记录每一天</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function tick() {
+    const n = new Date();
+    document.getElementById('clock').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes());
+    document.getElementById('bigclock').textContent = pad(n.getHours()) + ':' + pad(n.getMinutes()) + ':' + pad(n.getSeconds());
+    document.getElementById('bigdate').textContent = n.getFullYear() + '.' + pad(n.getMonth()+1) + '.' + pad(n.getDate());
+  }
+  tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>

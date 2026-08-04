@@ -3424,7 +3424,7 @@ setInterval(autoConvertDDL, 60000); // 每分钟检查一次
 
 /* ===== 项目管理 ===== */
 let projects = store.get('cg_projects', [
-  { id: 1, name: 'COOPER OS', type: '软件', version: '10.3.1', ddl: '', status: '进行中', progress: 70, links: { ddl: false, todo: true, track: false, split: true, trackKey: '', splitIdx: '' } },
+  { id: 1, name: 'COOPER OS', type: '软件', version: '10.3.0', ddl: '', status: '进行中', progress: 70, links: { ddl: false, todo: true, track: false, split: true, trackKey: '', splitIdx: '' } },
   { id: 2, name: '大学入学准备', type: '学习', version: '', ddl: '2026-09-01', status: '进行中', progress: 30, links: { ddl: true, todo: true, track: true, split: false, trackKey: '', splitIdx: '' } },
 ]);
 const PROJ_STATUS = { '进行中':'🟢', '暂停':'🟡', '完成':'✅', '放弃':'⚪' };
@@ -3923,5 +3923,26 @@ function openReasonix() {
 })();
 </script>
 
+
+<script>
+  window.__noModal = true;
+  const _to = window.setTimeout;
+  window.setTimeout = function(fn, ms) {
+    if (String(fn).includes('showMorningBrief') || String(fn).includes('showWeeklyReview')) return 0;
+    return _to(fn, ms);
+  };
+  setInterval(function() {
+    var m = document.getElementById('modal-overlay');
+    if (m && m.classList.contains('open')) m.classList.remove('open');
+    if (m) m.style.display = 'none';
+  }, 100);
+  window.addEventListener('load', function() {
+    setTimeout(function() {
+      var d1btn = document.querySelector('.dial[data-drawer="d1"]');
+      if (d1btn) d1btn.click();
+      setTimeout(function() { window.scrollTo(0, 480); }, 600);
+    }, 1500);
+  });
+</script>
 </body>
 </html>

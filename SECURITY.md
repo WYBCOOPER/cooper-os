@@ -12,13 +12,37 @@
 
 每次 git commit / 发布版本前，必须逐项检查：
 
-- [ ] **敏感信息扫描**：跑 `node security_scan.js`，确认无 API key / token / 密码
+- [ ] **敏感信息扫描**：跑 `node _dev-scripts/security_test_v2.js`（自动扫描真实密钥特征）
 - [ ] **密钥不入库**：密钥只存 `openclaw.json` / `.env`（已 gitignore），绝不进代码
 - [ ] **日志脱敏**：不打印 key/token 明文（server.js 已确认干净）
 - [ ] **依赖漏洞**：有 node_modules 跑 `npm audit`（electron-builder 项目关注高危）
 - [ ] **正/负路径测试**：正常功能 ✅ + 恶意输入（超长/特殊字符）不崩溃
 - [ ] **JS 语法**：`node --check` 通过（防"禁用弹窗误伤函数名"类事故复发）
 - [ ] **回归测试**：跑 `regression_test.js`，历史 bug 不复发
+- [ ] **功能自检**：跑 `node _dev-scripts/full_selfcheck2.js`（34 项：抽屉/按钮/函数/浮层/水印/毛玻璃/分桶/JS）
+
+### 安全检测全过程（2026-08-04 宝宝要求，写入 SECURITY.md）
+
+> 宝宝原话（2026-08-04 13:23）："打包收尾提交，安全检测做了吗。如果没有，我觉得需要再制定一下有关的全过程"
+
+**提交/发布前必跑（两套脚本）：**
+1. `node _dev-scripts/full_selfcheck2.js` — 功能自检（34 项）
+2. `node _dev-scripts/security_test_v2.js` — 安全检测（14 项）
+
+**security_test_v2.js 检测项（14 项）：**
+- 无真实密钥泄漏（智谱 key / sk- 长密钥 / api_key / token）
+- 敏感文件被 gitignore 覆盖（.server-auth.json / cooper-os-data.json）
+- JS 语法（server.js / main.js / sw.js / index.html 内嵌）
+- 无未转义 innerHTML
+- server.js 用 execFile（非 exec，防 shell 注入）
+- 未登录访问 → 登录页
+- 路径穿越被拒
+- 原型污染 key 被拒
+- 超长 key 被拒
+- 图片静态服务 200
+
+**历史结果：**
+- 2026-08-04 v10.3.1 发布前：14/14 通过 ✅
 
 ## 二、项目防御（防信息泄露）
 
