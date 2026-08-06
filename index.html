@@ -1496,7 +1496,7 @@ const store = {
 
 function escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 const pad = x => String(x).padStart(2,'0');
-function dateKey() { const n=new Date(); return `${n.getFullYear()}
+function dateKey() { const n=new Date(); return `${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`; }
 
 /* 保存今日聚焦：写入当天分桶（每天独立） */
 function saveFocus() {
@@ -1506,8 +1506,8 @@ function saveFocus() {
     all[d] = JSON.parse(JSON.stringify(focus));
     store.set('cg_focus_daily', all);
   } catch(e) {}
-  saveFocus(); // 兼容旧版读取
-}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`; }
+}
+
 function dayNum() { const n=new Date(); const s=new Date(n.getFullYear(),0,0); return Math.floor((n-s)/86400000); }
 
 /* ===== 同步 ===== */
@@ -3424,7 +3424,7 @@ setInterval(autoConvertDDL, 60000); // 每分钟检查一次
 
 /* ===== 项目管理 ===== */
 let projects = store.get('cg_projects', [
-  { id: 1, name: 'COOPER OS', type: '软件', version: '10.3.2', ddl: '', status: '进行中', progress: 70, links: { ddl: false, todo: true, track: false, split: true, trackKey: '', splitIdx: '' } },
+  { id: 1, name: 'COOPER OS', type: '软件', version: '10.3.3', ddl: '', status: '进行中', progress: 70, links: { ddl: false, todo: true, track: false, split: true, trackKey: '', splitIdx: '' } },
   { id: 2, name: '大学入学准备', type: '学习', version: '', ddl: '2026-09-01', status: '进行中', progress: 30, links: { ddl: true, todo: true, track: true, split: false, trackKey: '', splitIdx: '' } },
 ]);
 const PROJ_STATUS = { '进行中':'🟢', '暂停':'🟡', '完成':'✅', '放弃':'⚪' };

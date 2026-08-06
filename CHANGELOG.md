@@ -4,6 +4,15 @@
 > 格式：[SemVer](https://semver.org/lang/zh-CN/) 语义化版本 `MAJOR.MINOR.PATCH`
 
 ---
+## [v10.3.3] - 2026-08-06
+
+### 修复：学习追踪天数不显示（重要）
+- **dateKey 函数损坏**：模板字符串未闭合，吞掉 saveFocus 代码 → dateKey() 返回垃圾值
+- 导致打卡写入"垃圾日期 key"（含代码片段），天数格子匹配不上 → 不显示
+- 修复 dateKey（正确返回 YYYY-MM-DD）+ 重建 saveFocus
+- 清理数据库所有垃圾 key（cg_track_today / cg_brief_shown），数据合并回正确日期
+- 升级 sw.js 缓存版本 v10 → v11（强制浏览器拉新版）
+
 ## [v10.3.2] - 2026-08-06
 
 ### 数据存储升级：SQLite 真数据库（重要）

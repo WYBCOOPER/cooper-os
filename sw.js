@@ -1,5 +1,5 @@
 /* COOPER OS Service Worker — 网络优先（保证总是最新版） */
-const CACHE = 'cooper-os-v10';
+const CACHE = 'cooper-os-v11';
 
 self.addEventListener('install', e => {
   self.skipWaiting();
