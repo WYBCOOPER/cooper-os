@@ -3424,7 +3424,7 @@ setInterval(autoConvertDDL, 60000); // 每分钟检查一次
 
 /* ===== 项目管理 ===== */
 let projects = store.get('cg_projects', [
-  { id: 1, name: 'COOPER OS', type: '软件', version: '10.3.1', ddl: '', status: '进行中', progress: 70, links: { ddl: false, todo: true, track: false, split: true, trackKey: '', splitIdx: '' } },
+  { id: 1, name: 'COOPER OS', type: '软件', version: '10.3.2', ddl: '', status: '进行中', progress: 70, links: { ddl: false, todo: true, track: false, split: true, trackKey: '', splitIdx: '' } },
   { id: 2, name: '大学入学准备', type: '学习', version: '', ddl: '2026-09-01', status: '进行中', progress: 30, links: { ddl: true, todo: true, track: true, split: false, trackKey: '', splitIdx: '' } },
 ]);
 const PROJ_STATUS = { '进行中':'🟢', '暂停':'🟡', '完成':'✅', '放弃':'⚪' };
@@ -3717,8 +3717,8 @@ function trackStart(key) {
       if (launcher) { launchApp(appLaunchers.indexOf(launcher)); launched++; }
     });
   }
-  // 没启动任何软件且没开网页 → 打开默认课程链接
-  if (!launched && !(d.startUrls && d.startUrls.length) && d.link) openExternalUrl(d.link);
+// 有关联链接就打开（软件+网页同时，Python 同时开 VS Code + 菜鸟教程） if (d.link && !(d.startUrls && d.startUrls.length)) openExternalUrl(d.link);
+  
   if (launched || (d.startUrls && d.startUrls.length)) {
     // 非阻塞提示（不用 alert，避免抢焦点）
     const el = document.getElementById('sb-sync');

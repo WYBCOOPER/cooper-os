@@ -11,7 +11,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
-const { exec, execFile } = require('child_process');
+const { exec, execFile, execFileSync } = require('child_process');
+const { DatabaseSync } = require('node:sqlite');
 
 const PORT = 3000;  // 3000 被 Mineradio 占用
 const HTML_FILE = path.join(__dirname, 'index.html');
@@ -97,25 +98,64 @@ const LOGIN_PAGE = `<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
 </body></html>`;
 
 /* ---------- 数据读写 ---------- */
+// ===== SQLite 数据存储（2026-08-06 升级：JSON → 真数据库，JSON 双保险）=====
+const DB_FILE = path.join(__dirname, 'cooper-os.db');
+let db = null;
+function getDB() {
+  if (db) return db;
+  try {
+    db = new DatabaseSync(DB_FILE);
+    db.exec('CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT)');
+    // 首次启动：迁移旧 JSON 数据
+    if (fs.existsSync(DATA_FILE)) {
+      try {
+        const old = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        const stmt = db.prepare('INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)');
+        Object.entries(old).forEach(([k, v]) => stmt.run(k, JSON.stringify(v)));
+        console.log('[SQLite] 已迁移旧 JSON 数据 ' + Object.keys(old).length + ' 条');
+      } catch (e) { console.log('[SQLite] 迁移跳过: ' + e.message); }
+    }
+  } catch (e) { console.log('[SQLite] 初始化失败: ' + e.message); }
+  return db;
+}
 function loadData() {
-  try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); }
-  catch { return {}; }
+  try {
+    const d = getDB();
+    if (d) {
+      const rows = d.prepare('SELECT key, value FROM kv').all();
+      const out = {};
+      rows.forEach(r => { try { out[r.key] = JSON.parse(r.value); } catch (e) { out[r.key] = r.value; } });
+      return out;
+    }
+  } catch (e) { console.log('[SQLite] 读取失败，回退 JSON: ' + e.message); }
+  try { return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch { return {}; }
 }
 function saveData(data) {
-  // 🔒 自动备份：保存前把旧数据备份（防误删/覆盖）
+  // 🔒 备份：保存前把旧数据备份（防误删/覆盖），保留最近 20 份
   try {
     const bakDir = path.join(__dirname, 'backups');
     if (!fs.existsSync(bakDir)) fs.mkdirSync(bakDir);
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     fs.writeFileSync(path.join(bakDir, 'data-' + stamp + '.json'), JSON.stringify(data, null, 2));
-    // 只保留最近 20 份
     const baks = fs.readdirSync(bakDir).filter(f => f.startsWith('data-')).sort();
-    while (baks.length > 20) {
-      fs.unlinkSync(path.join(bakDir, baks.shift()));
-    }
+    while (baks.length > 20) { fs.unlinkSync(path.join(bakDir, baks.shift())); }
   } catch(e) {}
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  // 双保险：SQLite 主写 + JSON 兜底
+  try {
+    const d = getDB();
+    if (d) {
+      const stmt = d.prepare('INSERT OR REPLACE INTO kv (key, value) VALUES (?, ?)');
+      Object.entries(data).forEach(([k, v]) => stmt.run(k, JSON.stringify(v)));
+      // 全量同步：删除 SQLite 中 data 里已不存在的 key（保证删除生效）
+      const keep = new Set(Object.keys(data));
+      d.prepare('SELECT key FROM kv').all().forEach(r => {
+        if (!keep.has(r.key)) d.prepare('DELETE FROM kv WHERE key=?').run(r.key);
+      });
+    }
+  } catch (e) { console.log('[SQLite] 写入失败: ' + e.message); }
+  try { fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2)); } catch(e) {}
 }
+
 
 /* ---------- 获取局域网 IP ---------- */
 function getLANIP() {
@@ -236,7 +276,7 @@ const server = http.createServer((req, res) => {
         if (value === null || value === undefined) { delete data[key]; } // null = 删除
         else { data[key] = value; }
         saveData(data);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ ok: true }));
       } catch (e) {
         res.writeHead(400);
@@ -248,12 +288,110 @@ const server = http.createServer((req, res) => {
 
   /* 加载全部数据：GET /api/load */
   if (url === '/api/load') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify(loadData()));
     return;
   }
 
-  /* 启动应用：GET /api/launch/:app */
+  /* /* ===== 软件管理：扫描 + 启动（2026-08-06）===== */
+/* 扫描已安装软件：GET /api/apps/scan（批量解析，秒出）*/
+let appsScanCache = null;
+let appsScanCacheTime = 0;
+if (url === '/api/apps/scan' && req.method === 'GET') {
+  // 缓存 5 分钟（避免每次 30 秒）
+  if (appsScanCache && Date.now() - appsScanCacheTime < 300000) {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify(appsScanCache));
+    return;
+  }
+  const found = [];
+  const seen = new Set();
+  function addApp(name, exePath) {
+    if (!name || !exePath) return;
+    if (!fs.existsSync(exePath)) return;
+    if (seen.has(exePath.toLowerCase())) return;
+    seen.add(exePath.toLowerCase());
+    found.push({ name, icon: '📦', path: exePath, cat: '软件' });
+  }
+  // 收集所有开始菜单 lnk（不解析，先收集）
+  const lnkList = [];
+  const startMenuDirs = [
+    (process.env.APPDATA || '') + '\\Microsoft\\Windows\\Start Menu\\Programs',
+    'C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs'
+  ];
+  startMenuDirs.forEach(dir => {
+    try {
+      if (!fs.existsSync(dir)) return;
+      const walk = (d) => {
+        let items = [];
+        try { items = fs.readdirSync(d, { withFileTypes: true }); } catch(e) { return; }
+        items.forEach(it => {
+          const full = d + '\\' + it.name;
+          if (it.isDirectory()) walk(full);
+          else if (it.name.toLowerCase().endsWith('.lnk')) lnkList.push(full);
+        });
+      };
+      walk(dir);
+    } catch(e) {}
+  });
+  // 批量 PowerShell：一次解析所有 lnk（避免每个启动一次进程）
+  if (lnkList.length > 0) {
+    try {
+      const escList = lnkList.map(p => "'" + p.replace(/'/g, "''") + "'").join(',');
+      const psScript = "[Console]::OutputEncoding=[Text.Encoding]::UTF8; $s=New-Object -ComObject WScript.Shell; @(" + escList + ") | ForEach-Object { $l=$s.CreateShortcut($_); if($l.TargetPath -and $l.TargetPath.EndsWith('.exe')){ Write-Output ($l.TargetPath + '|' + (Split-Path $_ -Leaf).Replace('.lnk','')) } }";
+      const out = execFileSync('powershell', ['-NoProfile', '-Command', psScript], { encoding: 'utf8', windowsHide: true, timeout: 30000 }).trim();
+      if (out) {
+        out.split(/\r?\n/).forEach(line => {
+          const m = line.match(/^(.*)\|([^|]+)$/);
+          if (m) addApp(m[2], m[1]);
+        });
+      }
+    } catch(e) { console.log('[scan] 批量解析失败: ' + (e.message || '').slice(0, 60)); }
+  }
+  // 常见目录补充
+  const extraDirs = ['C:\\Program Files', 'C:\\Program Files (x86)', 'C:\\Users\\wyb\\AppData\\Local\\Programs'];
+  extraDirs.forEach(dir => {
+    try {
+      if (!fs.existsSync(dir)) return;
+      const items = fs.readdirSync(dir, { withFileTypes: true });
+      items.forEach(it => { if (it.isDirectory()) addApp(it.name, dir + '\\' + it.name + '\\' + it.name + '.exe'); });
+    } catch(e) {}
+  });
+  found.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+  appsScanCache = { ok: true, apps: found.slice(0, 300), total: found.length };
+  appsScanCacheTime = Date.now();
+  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify(appsScanCache));
+  return;
+}
+
+/* 启动软件：GET /api/apps/launch?path=...（安全白名单）*/
+if (url === '/api/apps/launch' && req.method === 'GET') {
+  const q = new URL(req.url, 'http://x').searchParams;
+  const p = q.get('path') || '';
+  const lower = p.toLowerCase();
+  const okPath = lower.endsWith('.exe') && (lower.includes('program files') || lower.includes('appdata') || lower.includes('system32') || lower.includes('users\\') || lower.includes('lenovosoftstore')) && !lower.includes('cmd.exe') && !lower.includes('powershell') && !lower.includes('&&') && !lower.includes(';') && !lower.includes('del ');
+  if (!okPath) { res.writeHead(403); res.end(JSON.stringify({ ok: false, error: 'not whitelisted' })); return; }
+  execFile('cmd', ['/c', 'start', '', p], { windowsHide: true }, () => {});
+  res.writeHead(200);
+  res.end(JSON.stringify({ ok: true, path: p }));
+  return;
+}
+
+/* 打开外部链接：GET /api/open-url?url=...（安全白名单协议）*/
+if (url === '/api/open-url' && req.method === 'GET') {
+  const q = new URL(req.url, 'http://x').searchParams;
+  const u = q.get('url') || '';
+  // 白名单协议：http/https/bilibili 等（禁止 file:// javascript: 等危险协议）
+  const ok = /^(https?:\/\/|bilibili:|obsidian:|steam:|magnet:)/i.test(u);
+  if (!ok || u.length > 500) { res.writeHead(403); res.end(JSON.stringify({ ok: false, error: 'invalid url' })); return; }
+  execFile('cmd', ['/c', 'start', '', u], { windowsHide: true }, () => {});
+  res.writeHead(200);
+  res.end(JSON.stringify({ ok: true, url: u }));
+  return;
+}
+
+/* 启动应用：GET /api/launch/:app */
   if (url.startsWith('/api/launch/')) {
     // S2 修复：白名单校验（禁止路径穿越/任意命令）
     const app = decodeURIComponent(url.split('/')[3] || '');
@@ -273,7 +411,7 @@ const server = http.createServer((req, res) => {
 
   /* 文档占位 */
   if (url.startsWith('/api/doc/')) {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ ok: true, msg: '文档中心：请将文件放入本目录 docs/ 文件夹' }));
     return;
   }

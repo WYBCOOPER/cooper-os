@@ -4,6 +4,25 @@
 > 格式：[SemVer](https://semver.org/lang/zh-CN/) 语义化版本 `MAJOR.MINOR.PATCH`
 
 ---
+## [v10.3.2] - 2026-08-06
+
+### 数据存储升级：SQLite 真数据库（重要）
+- server.js 存储层 JSON → node:sqlite（cooper-os.db，kv 表）
+- 三层防护：SQLite 主存储 + JSON 双保险 + backups 20 份时间点备份
+- 修复 saveData 删除不同步 bug（SQLite 全量同步，删除生效）
+- 已验证：写入/读取/删除/断电模拟（强杀进程数据完好）全部通过
+
+### 软件管理修复（全盘扫描）
+- 修复 execFileSync is not defined（漏解构）→ 扫描从 4 个 → 67+ 软件
+- 扫描优化：批量 PowerShell 解析（30秒 → 0.5秒）+ 5 分钟缓存
+- 修复中文乱码：PowerShell 输出 UTF-8 + JSON 响应 charset=utf-8
+- 补 /api/open-url 接口（安全白名单协议）→ 学习追踪"开始"可用
+- 启动白名单放宽：users 目录 + LenovoSoftstore（直播伴侣可启动），安全拦截保留
+- trackStart 逻辑修复：软件+网页同时打开（Python 同时开 VS Code + 菜鸟教程）
+
+### 搜索系统稳定
+- 按需启动 ensure_searxng.js（搜索前拉起 WSL+searxng，用完 60 秒自动关，零常驻）
+
 
 ## [10.3.1] - 2026-08-04
 
